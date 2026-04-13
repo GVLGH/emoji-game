@@ -24,16 +24,45 @@
             padding-bottom: max(20px, env(safe-area-inset-bottom));
         }
 
-        .game {
+        /* ---- Screens ---- */
+        .screen {
+            display: none;
             width: 100%;
             max-width: 420px;
-            display: flex;
             flex-direction: column;
             align-items: center;
             gap: 18px;
         }
 
-        /* Header */
+        /* ---- Level Select ---- */
+        .level-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .level-btn {
+            width: calc(50% - 7px);
+            aspect-ratio: 1;
+            border: none;
+            border-radius: 28px;
+            font-size: clamp(62px, 17vw, 82px);
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.09);
+            transition: transform 0.12s ease;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .level-btn:active { transform: scale(0.92); }
+
+        /* ---- Game Header ---- */
         .header {
             width: 100%;
             display: flex;
@@ -41,31 +70,51 @@
             align-items: center;
         }
 
-        .title {
-            font-size: 20px;
-            font-weight: 800;
-            color: #6b4fba;
-            letter-spacing: -0.3px;
+        .lives {
+            display: flex;
+            gap: 3px;
+            font-size: 28px;
+            line-height: 1;
         }
 
-        .score {
+        .heart {
+            display: inline-block;
+            transition: transform 0.15s ease;
+        }
+
+        @keyframes heartLose {
+            0%   { transform: scale(1); }
+            35%  { transform: scale(1.35); }
+            100% { transform: scale(1); }
+        }
+
+        .heart.losing { animation: heartLose 0.32s ease forwards; }
+
+        .score-badge {
             background: white;
             border-radius: 50px;
-            padding: 7px 16px;
+            padding: 7px 14px;
             font-size: 15px;
             font-weight: 700;
             color: #6b4fba;
             box-shadow: 0 2px 12px rgba(107,79,186,0.18);
         }
 
-        /* Instruction */
-        .hint {
-            font-size: 15px;
-            font-weight: 600;
-            color: #9a88cc;
+        .home-btn {
+            background: white;
+            border: none;
+            border-radius: 50px;
+            padding: 7px 12px;
+            font-size: 19px;
+            cursor: pointer;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            touch-action: manipulation;
+            transition: transform 0.12s ease;
         }
 
-        /* Target area */
+        .home-btn:active { transform: scale(0.9); }
+
+        /* ---- Target card ---- */
         .target-card {
             background: white;
             border-radius: 28px;
@@ -83,7 +132,7 @@
             user-select: none;
         }
 
-        /* Option buttons */
+        /* ---- Option buttons ---- */
         .options {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -108,9 +157,7 @@
             touch-action: manipulation;
         }
 
-        .opt:not(:disabled):active {
-            transform: scale(0.91);
-        }
+        .opt:not(:disabled):active { transform: scale(0.91); }
 
         .opt.correct {
             border-color: #86efac;
@@ -125,11 +172,7 @@
         }
 
         .opt:disabled { cursor: default; }
-
-        .opt:disabled:not(.correct) {
-            opacity: 0.35;
-            box-shadow: none;
-        }
+        .opt:disabled:not(.correct) { opacity: 0.35; box-shadow: none; }
 
         @keyframes pop {
             0%   { transform: scale(1); }
@@ -145,115 +188,211 @@
             80%       { transform: translateX(5px) rotate(1deg); }
         }
 
-        /* Feedback message */
-        .feedback {
-            height: 26px;
-            font-size: 17px;
-            font-weight: 700;
-            text-align: center;
-            opacity: 0;
-            transition: opacity 0.2s ease;
+        /* ---- Game Over overlay ---- */
+        .gameover-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.88);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 100px;
+            animation: fadeIn 0.25s ease forwards;
+            z-index: 10;
         }
 
-        .feedback.show     { opacity: 1; }
-        .feedback.show.ok  { color: #16a34a; }
-        .feedback.show.no  { color: #dc2626; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to   { opacity: 1; transform: scale(1); }
+        }
     </style>
 </head>
 <body>
 
-<div class="game">
+<!-- Level Select -->
+<div id="s-level" class="screen">
+    <div class="level-grid" id="level-grid"></div>
+</div>
+
+<!-- Game -->
+<div id="s-game" class="screen">
     <div class="header">
-        <span class="title">✨ Emoji Match</span>
-        <span class="score" id="score">⭐ 0</span>
+        <div class="lives" id="lives"></div>
+        <div class="score-badge" id="score">⭐ 0</div>
+        <button class="home-btn" id="home-btn">🏠</button>
     </div>
-
-    <p class="hint">Find the same one!</p>
-
     <div class="target-card">
         <div id="target"></div>
     </div>
-
     <div class="options" id="options"></div>
-
-    <div class="feedback" id="feedback"></div>
 </div>
 
 <script>
-const EMOJIS = [
-    '🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁',
-    '🐸','🐵','🐔','🐧','🦆','🦉','🐴','🦄','🐝','🦋','🐞',
-    '🍎','🍊','🍋','🍇','🍓','🍒','🍌','🍉','🌽','🍄',
-    '🌸','🌻','⭐','🌈','☀️','🌙',
-    '🎈','🚗','🚂','✈️','🏠','🎁','⚽','🏀','🎂','🍦','🍩','🍪'
+const LEVELS = [
+    {
+        icon: '🌟',
+        bg: '#ede8ff',
+        emojis: [
+            '🐶','🐱','🐰','🦊','🐻','🐼','🐸','🐵','🐧','🦄',
+            '🍎','🍊','🍋','🍇','🍓','🍌','🍉',
+            '🌸','🌻','🌈','☀️','🌙',
+            '🚗','🚂','✈️','🎈','⚽','🏀','🎂','🍦','🍩'
+        ]
+    },
+    {
+        icon: '🐾',
+        bg: '#dff5df',
+        emojis: [
+            '🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯',
+            '🦁','🐸','🐵','🐔','🐧','🦆','🦉','🐴','🦄','🐝',
+            '🦋','🐞','🐠','🐬','🐳','🦒','🐘','🦓','🦘','🦔'
+        ]
+    },
+    {
+        icon: '🚗',
+        bg: '#ddeeff',
+        emojis: [
+            '🚗','🚕','🚌','🏎️','🚓','🚑','🚒','🚜','🚁','✈️',
+            '🚀','⛵','🚢','🚂','🛵','🚲','🛸','🛻','🚐','🚎'
+        ]
+    },
+    {
+        icon: '🍎',
+        bg: '#fff0dd',
+        emojis: [
+            '🍎','🍊','🍋','🍇','🍓','🍒','🍑','🍌','🍉','🌽',
+            '🥝','🍕','🌮','🍔','🍦','🍩','🍪','🎂','🍭','🍫',
+            '🍿','🧁','🍰','🥐','🥞'
+        ]
+    },
+    {
+        icon: '🌸',
+        bg: '#ffe0f0',
+        emojis: [
+            '🌸','🌻','🌹','🌺','🌼','🌷','🍄','🌈','☀️','🌙',
+            '⭐','🌊','🔥','⛄','🌿','🍀','🍁','🍂','🌴','🌵',
+            '🐚','💧','❄️','🌾','🪸'
+        ]
+    }
 ];
 
-let score = 0, target = null, locked = false, audioCtx = null;
+let level = null, lives = 3, score = 0, target = null, locked = false, audioCtx = null;
 
+// ---- Audio ----
 function getCtx() {
     return audioCtx || (audioCtx = new (window.AudioContext || window.webkitAudioContext)());
 }
-
 function beep(type) {
     try {
         const ctx = getCtx(), t = ctx.currentTime;
         const master = ctx.createGain();
         master.connect(ctx.destination);
         if (type === 'ok') {
-            // Gentle ascending chord: C E G
-            [[523, 0], [659, 0.13], [784, 0.26]].forEach(([freq, dt]) => {
-                const osc = ctx.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.value = freq;
+            [[523,0],[659,0.13],[784,0.26]].forEach(([f,dt]) => {
+                const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
                 const g = ctx.createGain();
-                g.gain.setValueAtTime(0.2, t + dt);
-                g.gain.exponentialRampToValueAtTime(0.001, t + dt + 0.4);
-                osc.connect(g);
-                g.connect(master);
-                osc.start(t + dt);
-                osc.stop(t + dt + 0.45);
+                g.gain.setValueAtTime(0.2, t+dt);
+                g.gain.exponentialRampToValueAtTime(0.001, t+dt+0.4);
+                o.connect(g); g.connect(master); o.start(t+dt); o.stop(t+dt+0.45);
             });
-        } else {
-            // Soft descending tone
-            const osc = ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(330, t);
-            osc.frequency.exponentialRampToValueAtTime(210, t + 0.3);
+        } else if (type === 'no') {
+            const o = ctx.createOscillator(); o.type = 'sine';
+            o.frequency.setValueAtTime(330, t);
+            o.frequency.exponentialRampToValueAtTime(210, t+0.3);
             const g = ctx.createGain();
             g.gain.setValueAtTime(0.16, t);
-            g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
-            osc.connect(g);
-            g.connect(master);
-            osc.start(t);
-            osc.stop(t + 0.35);
+            g.gain.exponentialRampToValueAtTime(0.001, t+0.32);
+            o.connect(g); g.connect(master); o.start(t); o.stop(t+0.35);
+        } else if (type === 'over') {
+            [[330,0],[262,0.22],[196,0.44]].forEach(([f,dt]) => {
+                const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0.18, t+dt);
+                g.gain.exponentialRampToValueAtTime(0.001, t+dt+0.32);
+                o.connect(g); g.connect(master); o.start(t+dt); o.stop(t+dt+0.38);
+            });
         }
-    } catch (_) {}
+    } catch(_) {}
 }
 
+// ---- Utils ----
 function shuffle(arr) {
     const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
+    for (let i = a.length-1; i>0; i--) {
+        const j = Math.random()*(i+1)|0;
+        [a[i],a[j]] = [a[j],a[i]];
     }
     return a;
 }
 
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+    document.getElementById(id).style.display = 'flex';
+}
+
+// ---- Level Select ----
+function buildLevelSelect() {
+    const grid = document.getElementById('level-grid');
+    grid.innerHTML = '';
+    LEVELS.forEach((lv, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'level-btn';
+        btn.style.background = lv.bg;
+        btn.textContent = lv.icon;
+        btn.onclick = () => startLevel(i);
+        grid.appendChild(btn);
+    });
+}
+
+// ---- Start / Reset ----
+function startLevel(idx) {
+    level = LEVELS[idx];
+    lives = 3;
+    score = 0;
+    target = null;
+    document.getElementById('score').textContent = '⭐ 0';
+    renderLives();
+    showScreen('s-game');
+    round();
+}
+
+// ---- Lives display ----
+function renderLives() {
+    const el = document.getElementById('lives');
+    el.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+        const span = document.createElement('span');
+        span.className = 'heart';
+        span.textContent = i < lives ? '❤️' : '🤍';
+        el.appendChild(span);
+    }
+}
+
+function loseHeart() {
+    // lives already decremented before this is called
+    const hearts = document.querySelectorAll('.heart');
+    const dying = hearts[lives]; // index matches the slot that just emptied
+    if (!dying) return;
+    dying.classList.add('losing');
+    setTimeout(() => {
+        dying.textContent = '🤍';
+        dying.classList.remove('losing');
+    }, 320);
+}
+
+// ---- Rounds ----
 function round() {
     locked = false;
-    showFeedback('', '');
-
-    // Pick a new target (never same as last)
     let t;
-    do { t = EMOJIS[Math.random() * EMOJIS.length | 0]; }
-    while (t === target && EMOJIS.length > 1);
+    do { t = level.emojis[Math.random() * level.emojis.length | 0]; }
+    while (t === target && level.emojis.length > 1);
     target = t;
 
     document.getElementById('target').textContent = target;
 
-    const distractors = shuffle(EMOJIS.filter(e => e !== target)).slice(0, 2);
-    const choices = shuffle([target, ...distractors]);
-
+    const choices = shuffle([target, ...shuffle(level.emojis.filter(e => e !== target)).slice(0, 2)]);
     const grid = document.getElementById('options');
     grid.innerHTML = '';
     choices.forEach(emoji => {
@@ -273,29 +412,44 @@ function pick(chosen, btn) {
         score++;
         document.getElementById('score').textContent = `⭐ ${score}`;
         btn.classList.add('correct');
-        showFeedback('Well done!', 'ok');
         beep('ok');
         document.querySelectorAll('.opt').forEach(b => b.disabled = true);
         setTimeout(round, 1100);
     } else {
         btn.classList.add('wrong');
-        showFeedback('Try again!', 'no');
         beep('no');
+        lives--;
+        loseHeart();
         setTimeout(() => {
             btn.classList.remove('wrong');
             btn.disabled = true;
-            showFeedback('', '');
+            if (lives <= 0) {
+                locked = true;
+                document.querySelectorAll('.opt').forEach(b => b.disabled = true);
+                triggerGameOver();
+            }
         }, 680);
     }
 }
 
-function showFeedback(msg, cls) {
-    const el = document.getElementById('feedback');
-    el.textContent = msg;
-    el.className = 'feedback' + (msg ? ` show ${cls}` : '');
+function triggerGameOver() {
+    beep('over');
+    const overlay = document.createElement('div');
+    overlay.className = 'gameover-overlay';
+    overlay.textContent = '💔';
+    document.body.appendChild(overlay);
+    setTimeout(() => {
+        overlay.remove();
+        startLevel(LEVELS.indexOf(level));
+    }, 1800);
 }
 
-round();
+// ---- Home button ----
+document.getElementById('home-btn').onclick = () => showScreen('s-level');
+
+// ---- Init ----
+buildLevelSelect();
+showScreen('s-level');
 </script>
 
 </body>
