@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Emoji Match</title>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(160deg, #e6efff 0%, #f5eaff 100%);
+            min-height: 100svh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            padding-top: max(20px, env(safe-area-inset-top));
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+        }
+
+        /* ---- Screens ---- */
+        .screen {
+            display: none;
+            width: 100%;
+            max-width: 420px;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+        }
+
+        /* ---- Level Select ---- */
+        .level-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .level-btn {
+            width: calc(50% - 7px);
+            aspect-ratio: 1;
+            border: none;
+            border-radius: 28px;
+            font-size: clamp(62px, 17vw, 82px);
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.09);
+            transition: transform 0.12s ease;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .level-btn:active { transform: scale(0.92); }
+
+        /* ---- Game Header ---- */
+        .header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .lives {
+            display: flex;
+            gap: 3px;
+            font-size: 28px;
+            line-height: 1;
+        }
+
+        .heart {
+            display: inline-block;
+            transition: transform 0.15s ease;
+        }
+
+        @keyframes heartLose {
+            0%   { transform: scale(1); }
+            35%  { transform: scale(1.35); }
+            100% { transform: scale(1); }
+        }
+
+        .heart.losing { animation: heartLose 0.32s ease forwards; }
+
+        .score-badge {
+            background: white;
+            border-radius: 50px;
+            padding: 7px 14px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #6b4fba;
+            box-shadow: 0 2px 12px rgba(107,79,186,0.18);
+        }
+
+        .home-btn {
+            background: white;
+            border: none;
+            border-radius: 50px;
+            padding: 7px 12px;
+            font-size: 19px;
+            cursor: pointer;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            touch-action: manipulation;
+            transition: transform 0.12s ease;
+        }
+
+        .home-btn:active { transform: scale(0.9); }
+
+        /* ---- Target card ---- */
+        .target-card {
+            background: white;
+            border-radius: 28px;
+            padding: 24px 32px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 32px rgba(107,79,186,0.10);
+        }
+
+        #target {
+            font-size: clamp(90px, 24vw, 116px);
+            line-height: 1;
+            user-select: none;
+        }
+
+        /* ---- Option buttons ---- */
+        .options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+        }
+
+        .opt {
+            background: white;
+            border: 3px solid transparent;
+            border-radius: 22px;
+            padding: 14px 6px;
+            font-size: clamp(52px, 14vw, 68px);
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.07);
+            transition: transform 0.12s ease, border-color 0.15s, background 0.15s;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .opt:not(:disabled):active { transform: scale(0.91); }
+
+        .opt.correct {
+            border-color: #86efac;
+            background: #f0fdf4;
+            animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .opt.wrong {
+            border-color: #fca5a5;
+            background: #fff1f2;
+            animation: shake 0.4s ease forwards;
+        }
+
+        .opt:disabled { cursor: default; }
+        .opt:disabled:not(.correct) { opacity: 0.35; box-shadow: none; }
+
+        @keyframes pop {
+            0%   { transform: scale(1); }
+            55%  { transform: scale(1.13); }
+            100% { transform: scale(1.05); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            20%       { transform: translateX(-8px) rotate(-3deg); }
+            40%       { transform: translateX(8px) rotate(3deg); }
+            60%       { transform: translateX(-5px) rotate(-1deg); }
+            80%       { transform: translateX(5px) rotate(1deg); }
+        }
+
+        /* ---- Game Over overlay ---- */
+        .gameover-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.88);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 100px;
+            animation: fadeIn 0.25s ease forwards;
+            z-index: 10;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Level Select -->
+<div id="s-level" class="screen">
+    <div class="level-grid" id="level-grid"></div>
+</div>
+
+<!-- Game -->
+<div id="s-game" class="screen">
+    <div class="header">
+        <div class="lives" id="lives"></div>
+        <div class="score-badge" id="score">⭐ 0</div>
+        <button class="home-btn" id="home-btn">🏠</button>
+    </div>
+    <div class="target-card">
+        <div id="target"></div>
+    </div>
+    <div class="options" id="options"></div>
+</div>
+
+<script>
+const LEVELS = [
+    {
+        icon: '🌟',
+        bg: '#ede8ff',
+        emojis: [
+            '🐶','🐱','🐰','🦊','🐻','🐼','🐸','🐵','🐧','🦄',
+            '🍎','🍊','🍋','🍇','🍓','🍌','🍉',
+            '🌸','🌻','🌈','☀️','🌙',
+            '🚗','🚂','✈️','🎈','⚽','🏀','🎂','🍦','🍩'
+        ]
+    },
+    {
+        icon: '🐾',
+        bg: '#dff5df',
+        emojis: [
+            '🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯',
+            '🦁','🐸','🐵','🐔','🐧','🦆','🦉','🐴','🦄','🐝',
+            '🦋','🐞','🐠','🐬','🐳','🦒','🐘','🦓','🦘','🦔'
+        ]
+    },
+    {
+        icon: '🚗',
+        bg: '#ddeeff',
+        emojis: [
+            '🚗','🚕','🚌','🏎️','🚓','🚑','🚒','🚜','🚁','✈️',
+            '🚀','⛵','🚢','🚂','🛵','🚲','🛸','🛻','🚐','🚎'
+        ]
+    },
+    {
+        icon: '🍎',
+        bg: '#fff0dd',
+        emojis: [
+            '🍎','🍊','🍋','🍇','🍓','🍒','🍑','🍌','🍉','🌽',
+            '🥝','🍕','🌮','🍔','🍦','🍩','🍪','🎂','🍭','🍫',
+            '🍿','🧁','🍰','🥐','🥞'
+        ]
+    },
+    {
+        icon: '🌸',
+        bg: '#ffe0f0',
+        emojis: [
+            '🌸','🌻','🌹','🌺','🌼','🌷','🍄','🌈','☀️','🌙',
+            '⭐','🌊','🔥','⛄','🌿','🍀','🍁','🍂','🌴','🌵',
+            '🐚','💧','❄️','🌾','🪸'
+        ]
+    }
+];
+
+let level = null, lives = 3, score = 0, target = null, locked = false, audioCtx = null;
+
+// ---- Audio ----
+function getCtx() {
+    return audioCtx || (audioCtx = new (window.AudioContext || window.webkitAudioContext)());
+}
+function beep(type) {
+    try {
+        const ctx = getCtx(), t = ctx.currentTime;
+        const master = ctx.createGain();
+        master.connect(ctx.destination);
+        if (type === 'ok') {
+            [[523,0],[659,0.13],[784,0.26]].forEach(([f,dt]) => {
+                const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0.2, t+dt);
+                g.gain.exponentialRampToValueAtTime(0.001, t+dt+0.4);
+                o.connect(g); g.connect(master); o.start(t+dt); o.stop(t+dt+0.45);
+            });
+        } else if (type === 'no') {
+            const o = ctx.createOscillator(); o.type = 'sine';
+            o.frequency.setValueAtTime(330, t);
+            o.frequency.exponentialRampToValueAtTime(210, t+0.3);
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0.16, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t+0.32);
+            o.connect(g); g.connect(master); o.start(t); o.stop(t+0.35);
+        } else if (type === 'over') {
+            [[330,0],[262,0.22],[196,0.44]].forEach(([f,dt]) => {
+                const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0.18, t+dt);
+                g.gain.exponentialRampToValueAtTime(0.001, t+dt+0.32);
+                o.connect(g); g.connect(master); o.start(t+dt); o.stop(t+dt+0.38);
+            });
+        }
+    } catch(_) {}
+}
+
+// ---- Utils ----
+function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length-1; i>0; i--) {
+        const j = Math.random()*(i+1)|0;
+        [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+}
+
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+    document.getElementById(id).style.display = 'flex';
+}
+
+// ---- Level Select ----
+function buildLevelSelect() {
+    const grid = document.getElementById('level-grid');
+    grid.innerHTML = '';
+    LEVELS.forEach((lv, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'level-btn';
+        btn.style.background = lv.bg;
+        btn.textContent = lv.icon;
+        btn.onclick = () => startLevel(i);
+        grid.appendChild(btn);
+    });
+}
+
+// ---- Start / Reset ----
+function startLevel(idx) {
+    level = LEVELS[idx];
+    lives = 3;
+    score = 0;
+    target = null;
+    document.getElementById('score').textContent = '⭐ 0';
+    renderLives();
+    showScreen('s-game');
+    round();
+}
+
+// ---- Lives display ----
+function renderLives() {
+    const el = document.getElementById('lives');
+    el.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+        const span = document.createElement('span');
+        span.className = 'heart';
+        span.textContent = i < lives ? '❤️' : '🤍';
+        el.appendChild(span);
+    }
+}
+
+function loseHeart() {
+    // lives already decremented before this is called
+    const hearts = document.querySelectorAll('.heart');
+    const dying = hearts[lives]; // index matches the slot that just emptied
+    if (!dying) return;
+    dying.classList.add('losing');
+    setTimeout(() => {
+        dying.textContent = '🤍';
+        dying.classList.remove('losing');
+    }, 320);
+}
+
+// ---- Rounds ----
+function round() {
+    locked = false;
+    let t;
+    do { t = level.emojis[Math.random() * level.emojis.length | 0]; }
+    while (t === target && level.emojis.length > 1);
+    target = t;
+
+    document.getElementById('target').textContent = target;
+
+    const choices = shuffle([target, ...shuffle(level.emojis.filter(e => e !== target)).slice(0, 2)]);
+    const grid = document.getElementById('options');
+    grid.innerHTML = '';
+    choices.forEach(emoji => {
+        const btn = document.createElement('button');
+        btn.className = 'opt';
+        btn.textContent = emoji;
+        btn.onclick = () => pick(emoji, btn);
+        grid.appendChild(btn);
+    });
+}
+
+function pick(chosen, btn) {
+    if (locked || btn.disabled) return;
+
+    if (chosen === target) {
+        locked = true;
+        score++;
+        document.getElementById('score').textContent = `⭐ ${score}`;
+        btn.classList.add('correct');
+        beep('ok');
+        document.querySelectorAll('.opt').forEach(b => b.disabled = true);
+        setTimeout(round, 1100);
+    } else {
+        btn.classList.add('wrong');
+        beep('no');
+        lives--;
+        loseHeart();
+        setTimeout(() => {
+            btn.classList.remove('wrong');
+            btn.disabled = true;
+            if (lives <= 0) {
+                locked = true;
+                document.querySelectorAll('.opt').forEach(b => b.disabled = true);
+                triggerGameOver();
+            }
+        }, 680);
+    }
+}
+
+function triggerGameOver() {
+    beep('over');
+    const overlay = document.createElement('div');
+    overlay.className = 'gameover-overlay';
+    overlay.textContent = '💔';
+    document.body.appendChild(overlay);
+    setTimeout(() => {
+        overlay.remove();
+        startLevel(LEVELS.indexOf(level));
+    }, 1800);
+}
+
+// ---- Home button ----
+document.getElementById('home-btn').onclick = () => showScreen('s-level');
+
+// ---- Init ----
+buildLevelSelect();
+showScreen('s-level');
+</script>
+
+</body>
+</html>
