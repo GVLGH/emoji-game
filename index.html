@@ -281,7 +281,7 @@
 <div id="s-game" class="screen">
     <div class="header">
         <div class="lives" id="lives"></div>
-        <div class="progress-badge" id="progress">0 / 25</div>
+        <div class="progress-badge" id="progress">0 / 15</div>
         <button class="home-btn" id="home-btn">🏠</button>
     </div>
     <div class="target-card">
@@ -291,18 +291,20 @@
 </div>
 
 <script>
-const GOAL = 25;
+const GOAL = 15;
 
 const LEVELS = [
+    // --- text levels first ---
     {
-        icon: '🌟', bg: '#ede8ff', type: 'emoji',
-        pool: [
-            '🐶','🐱','🐰','🦊','🐻','🐼','🐸','🐵','🐧','🦄',
-            '🍎','🍊','🍋','🍇','🍓','🍌','🍉',
-            '🌸','🌻','🌈','☀️','🌙',
-            '🚗','🚂','✈️','🎈','⚽','🏀','🎂','🍦','🍩'
-        ]
+        icon: '🔢', bg: '#fffde0', type: 'text',
+        pool: ['1','2','3','4','5','6','7','8','9','10']
     },
+    {
+        icon: '🔤', bg: '#e0f4ff', type: 'text',
+        pool: ['a','b','c','d','e','f','g','h','i','j','k','l','m',
+               'n','o','p','q','r','s','t','u','v','w','x','y','z']
+    },
+    // --- emoji levels ---
     {
         icon: '🐾', bg: '#dff5df', type: 'emoji',
         pool: [
@@ -334,18 +336,38 @@ const LEVELS = [
             '🐚','💧','❄️','🌾','🪸'
         ]
     },
+    // --- mix level last ---
     {
-        icon: '🔤', bg: '#e0f4ff', type: 'text',
-        pool: ['a','b','c','d','e','f','g','h','i','j','k','l','m',
-               'n','o','p','q','r','s','t','u','v','w','x','y','z']
-    },
-    {
-        icon: '🔢', bg: '#fffde0', type: 'text',
-        pool: ['1','2','3','4','5','6','7','8','9','10']
+        icon: '🌟', bg: '#ede8ff', type: 'mixed',
+        pool: [
+            // emoji
+            '🐶','🐱','🐰','🦊','🐻','🐼','🐸','🐵','🐧','🦄',
+            '🍎','🍊','🍋','🍇','🍓','🍌','🍉',
+            '🌸','🌻','🌈','☀️','🌙',
+            '🚗','🚂','✈️','🎈','⚽','🏀','🎂','🍦','🍩',
+            // letters
+            'a','b','c','d','e','f','g','h','i','j','k','l','m',
+            'n','o','p','q','r','s','t','u','v','w','x','y','z',
+            // numbers
+            '1','2','3','4','5','6','7','8','9','10'
+        ]
     }
 ];
 
 let level = null, lives = 3, progress = 0, target = null, locked = false, audioCtx = null;
+
+// ---- Item type helpers ----
+function isLetter(s) { return /^[a-z]$/.test(s); }
+function isNumber(s) { return /^\d+$/.test(s); }
+function isText(s)   { return isLetter(s) || isNumber(s); }
+
+// For mixed levels: pick distractors from the same type group as the target
+// so emoji rounds stay emoji, letter rounds stay letters, etc.
+function typePool(item, pool) {
+    if (isLetter(item)) return pool.filter(isLetter);
+    if (isNumber(item)) return pool.filter(isNumber);
+    return pool.filter(e => !isLetter(e) && !isNumber(e));
+}
 
 // ---- Audio ----
 function getCtx() {
@@ -421,7 +443,7 @@ function buildLevelSelect() {
     });
 }
 
-// ---- Start / Reset ----
+// ---- Start ----
 function startLevel(idx) {
     level = LEVELS[idx];
     lives = 3;
@@ -429,7 +451,6 @@ function startLevel(idx) {
     target = null;
     renderLives();
     updateProgress();
-    document.getElementById('s-game').classList.toggle('text-level', level.type === 'text');
     showScreen('s-game');
     round();
 }
@@ -465,14 +486,21 @@ function loseHeart() {
 // ---- Rounds ----
 function round() {
     locked = false;
+
+    const pool = level.pool;
     let t;
-    do { t = level.pool[Math.random() * level.pool.length | 0]; }
-    while (t === target && level.pool.length > 1);
+    do { t = pool[Math.random() * pool.length | 0]; }
+    while (t === target && pool.length > 1);
     target = t;
 
+    // Apply text styling when the target is a letter or number
+    document.getElementById('s-game').classList.toggle('text-level', isText(target));
     document.getElementById('target').textContent = target;
 
-    const choices = shuffle([target, ...shuffle(level.pool.filter(e => e !== target)).slice(0, 2)]);
+    // Distractors always come from the same type group as the target
+    const candidates = typePool(target, pool);
+    const choices = shuffle([target, ...shuffle(candidates.filter(e => e !== target)).slice(0, 2)]);
+
     const grid = document.getElementById('options');
     grid.innerHTML = '';
     choices.forEach(item => {
@@ -526,7 +554,7 @@ function triggerGameOver() {
     document.body.appendChild(overlay);
     setTimeout(() => {
         overlay.remove();
-        startLevel(LEVELS.indexOf(level));
+        showScreen('s-level');
     }, 1800);
 }
 
