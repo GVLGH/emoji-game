@@ -442,13 +442,31 @@ function shuffle(arr) {
     return a;
 }
 
+// Voices load asynchronously; grab the best Dutch voice whenever the list updates.
+let nlVoice = null;
+
+function loadVoice() {
+    const voices = speechSynthesis.getVoices();
+    nlVoice = voices.find(v => v.lang === 'nl-NL')
+           || voices.find(v => v.lang === 'nl-BE')
+           || voices.find(v => v.lang.startsWith('nl'))
+           || null;
+}
+
+if (window.speechSynthesis) {
+    speechSynthesis.addEventListener('voiceschanged', loadVoice);
+    loadVoice(); // may already be populated on Safari/iOS
+}
+
 function speak(text) {
     if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
+    speechSynthesis.cancel();
+    if (!nlVoice) loadVoice(); // retry in case voices weren't ready on init
     const utt = new SpeechSynthesisUtterance(text);
     utt.lang = 'nl-NL';
+    if (nlVoice) utt.voice = nlVoice; // explicit voice avoids English fallback
     utt.rate = 0.82;
-    window.speechSynthesis.speak(utt);
+    speechSynthesis.speak(utt);
 }
 
 function showScreen(id) {
