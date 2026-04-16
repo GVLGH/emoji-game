@@ -296,13 +296,16 @@ const GOAL = 15;
 // Dutch phonics sounds as used in Dutch primary schools.
 // Fricatives/nasals/laterals are written as repeated characters so the TTS
 // engine holds the sound rather than clipping it. Stops get a minimal schwa.
+// Consonants are given a trailing 'a' so Dutch TTS reads them as a CV syllable
+// (phonics sound + short vowel) rather than as a letter name.
+// e.g. 'fa' → /fɑ/, 'sa' → /sɑ/. Vowels are left as single characters.
 const PHONICS = {
-    a: 'a',    b: 'buh',  c: 'see',  d: 'duh',  e: 'e',
-    f: 'fff',  g: 'ggg',  h: 'hhh',  i: 'i',    j: 'juh',
-    k: 'kuh',  l: 'lll',  m: 'mmm',  n: 'nnn',  o: 'o',
-    p: 'puh',  q: 'kuu',  r: 'rrr',  s: 'sss',  t: 'tuh',
-    u: 'u',    v: 'vvv',  w: 'wuh',  x: 'iks',  y: 'ie',
-    z: 'zzz',
+    a: 'a',   b: 'ba',  c: 'see', d: 'da',  e: 'e',
+    f: 'fa',  g: 'ga',  h: 'ha',  i: 'i',   j: 'ja',
+    k: 'ka',  l: 'la',  m: 'ma',  n: 'na',  o: 'o',
+    p: 'pa',  q: 'kuu', r: 'ra',  s: 'sa',  t: 'ta',
+    u: 'u',   v: 'va',  w: 'wa',  x: 'iks', y: 'ie',
+    z: 'za',
 };
 
 const DUTCH_NUMBERS = {
