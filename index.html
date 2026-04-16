@@ -296,13 +296,16 @@ const GOAL = 15;
 // Dutch phonics sounds as used in Dutch primary schools.
 // Fricatives/nasals/laterals are written as repeated characters so the TTS
 // engine holds the sound rather than clipping it. Stops get a minimal schwa.
+// 'uh' suffix is recognised by Dutch TTS as a single schwa sound.
+// Plain 'Xh' is read as two letter names (e.g. 'eh' → "ee-haa").
+// Vowels use bare letters; Dutch TTS reads them as the long vowel (letter name).
 const PHONICS = {
-    a: 'ah',  b: 'buh', c: 'see', d: 'duh', e: 'eh',
-    f: 'fh',  g: 'gh',  h: 'huh', i: 'ih',  j: 'jh',
-    k: 'kuh', l: 'lh',  m: 'hmm', n: 'hnn', o: 'oh',
-    p: 'ph',  q: 'kuu', r: 'rh',  s: 'sh',  t: 'th',
-    u: 'uh',  v: 'vh',  w: 'wh',  x: 'iks', y: 'ie',
-    z: 'zh',
+    a: 'a',    b: 'buh',  c: 'see',  d: 'duh',  e: 'e',
+    f: 'fuh',  g: 'guh',  h: 'huh',  i: 'i',    j: 'juh',
+    k: 'kuh',  l: 'luh',  m: 'muh',  n: 'nuh',  o: 'o',
+    p: 'puh',  q: 'kuu',  r: 'ruh',  s: 'suh',  t: 'tuh',
+    u: 'uh',   v: 'vuh',  w: 'wuh',  x: 'iks',  y: 'ie',
+    z: 'zuh',
 };
 
 const DUTCH_NUMBERS = {
