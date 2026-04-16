@@ -293,6 +293,23 @@
 <script>
 const GOAL = 15;
 
+// Dutch phonics sounds as used in Dutch primary schools.
+// Fricatives/nasals/laterals are written as repeated characters so the TTS
+// engine holds the sound rather than clipping it. Stops get a minimal schwa.
+const PHONICS = {
+    a: 'a',    b: 'buh',  c: 'kuh',  d: 'duh',  e: 'e',
+    f: 'fff',  g: 'ggg',  h: 'hhh',  i: 'i',    j: 'juh',
+    k: 'kuh',  l: 'lll',  m: 'mmm',  n: 'nnn',  o: 'o',
+    p: 'puh',  q: 'kwuh', r: 'rrr',  s: 'sss',  t: 'tuh',
+    u: 'u',    v: 'vvv',  w: 'wuh',  x: 'ks',   y: 'ie',
+    z: 'zzz',
+};
+
+const DUTCH_NUMBERS = {
+    '1':'één', '2':'twee', '3':'drie', '4':'vier', '5':'vijf',
+    '6':'zes', '7':'zeven', '8':'acht', '9':'negen', '10':'tien',
+};
+
 const LEVELS = [
     // --- text levels first ---
     {
@@ -425,7 +442,17 @@ function shuffle(arr) {
     return a;
 }
 
+function speak(text) {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = 'nl-NL';
+    utt.rate = 0.82;
+    window.speechSynthesis.speak(utt);
+}
+
 function showScreen(id) {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
     document.getElementById(id).style.display = 'flex';
 }
@@ -496,6 +523,11 @@ function round() {
     // Apply text styling when the target is a letter or number
     document.getElementById('s-game').classList.toggle('text-level', isText(target));
     document.getElementById('target').textContent = target;
+
+    if (isText(target)) {
+        const word = isNumber(target) ? DUTCH_NUMBERS[target] : PHONICS[target];
+        speak(word);
+    }
 
     // Distractors always come from the same type group as the target
     const candidates = typePool(target, pool);
